@@ -1,0 +1,39 @@
+name: Make map packs
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  packs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: go install github.com/protomaps/go-pmtiles@latest
+      - name: Вырезать города из карты Protomaps (OpenStreetMap)
+        run: |
+          SRC=""
+          for i in $(seq 1 14); do
+            D=$(date -u -d "-$i day" +%Y%m%d)
+            if curl -sfI "https://build.protomaps.com/$D.pmtiles" >/dev/null; then
+              SRC="https://build.protomaps.com/$D.pmtiles"; break
+            fi
+          done
+          [ -n "$SRC" ] || { echo "Нет свежей сборки"; exit 1; }
+          mkdir out
+          while IFS='|' read -r id bbox; do
+            "$(go env GOPATH)/bin/go-pmtiles" extract "$SRC" "out/$id.pmtiles" --bbox="$bbox" --maxzoom=15
+          done <<'LIST'
+          makhachkala|47.30,42.80,47.70,43.10
+          kaspiysk|47.55,42.82,47.75,42.95
+          derbent|48.15,41.98,48.40,42.15
+          khasavyurt|46.45,43.15,46.75,43.35
+          buynaksk|47.00,42.75,47.25,42.90
+          LIST
+      - name: Опубликовать в Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete packs -y --cleanup-tag || true
+          gh release create packs out/*.pmtiles --title "Map packs" --notes "OpenStreetMap © contributors, ODbL"

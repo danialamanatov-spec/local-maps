@@ -1,0 +1,27 @@
+name: Build IPA
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Шрифты для офлайн-подписей
+        run: |
+          git clone --depth 1 https://github.com/protomaps/basemaps-assets.git
+          mkdir -p Resources/fonts
+          cp -R "basemaps-assets/fonts/Noto Sans Regular" Resources/fonts/
+      - run: brew install xcodegen
+      - run: xcodegen generate
+      - run: >
+          xcodebuild -project Maps.xcodeproj -scheme Maps
+          -configuration Release -sdk iphoneos -derivedDataPath build
+          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+      - run: |
+          mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/Maps.app Payload/
+          zip -r Maps.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Maps-ipa
+          path: Maps.ipa
