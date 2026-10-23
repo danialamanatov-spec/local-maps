@@ -1,0 +1,20 @@
+name: Unpack
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          unzip -q -o Maps-repo.zip
+          mkdir -p workflows-copy
+          mv .github/workflows/build.yml workflows-copy/
+          mv .github/workflows/packs.yml workflows-copy/
+          rm Maps-repo.zip
+          git config user.name bot
+          git config user.email bot@users.noreply.github.com
+          git add -A
+          git commit -m "Add project"
+          git push
